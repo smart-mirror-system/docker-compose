@@ -1,0 +1,51 @@
+version: "3.9"
+
+services:
+  ###################
+  # Backend Services 
+  ###################
+  smart-mirror-mongo:
+    image: dhi.io/mongodb:8.0
+    container_name: mongo
+    ports:
+      - "27017:27017"
+    networks:
+      - smart-mirror-net
+  smart-mirror-api:
+    image: mohamedfouad71/smart-mirror-api
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.api
+    depends_on:
+      - smart-mirror-mongo
+    networks:
+      - smart-mirror-net
+
+  ###################
+  # Frontend Services 
+  ###################
+  smart-mirror-dashboard:
+    image: mohamedfouad71/smart-mirror-dashboard:latest
+    ports:
+      - "8081:80"
+    networks:
+      - smart-mirror-net
+
+  ###################
+  # AI Services 
+  ###################
+  smart-mirror-ai:
+    image: mohamedfouad71/smart-mirror-ai:latest
+    env_file:
+      - .env.ai
+    networks:
+      - smart-mirror-net
+    depends_on:
+      - smart-mirror-api
+  ###################
+  # Network
+  ###################
+networks:
+  smart-mirror-net:
+    driver: bridge
