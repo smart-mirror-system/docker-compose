@@ -12,7 +12,7 @@ services:
     networks:
       - smart-mirror-net
   smart-mirror-api:
-    image: mohamedfouad71/smart-mirror-api
+    image: mohamedfouad71/smart-mirror-api:latest
     ports:
       - "3000:3000"
     env_file:
