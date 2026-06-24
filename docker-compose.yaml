@@ -1,51 +1,113 @@
-version: "3.9"
+version: '3.8'
 
 services:
-  ###################
-  # Backend Services 
-  ###################
-  smart-mirror-mongo:
-    image: dhi.io/mongodb:8.0
-    container_name: mongo
+  # ==========================================
+  # 1. API GATEWAY (TRAEFIK)
+  # ==========================================
+  traefik:
+    image: traefik:v3.0
+    container_name: traefik_gateway
+    command:
+      - "--api.insecure=true"
+      - "--providers.file.directory=/etc/traefik/dynamic" # 🟢 Tell Traefik to read from files
+      - "--providers.file.watch=true" # 🟢 Auto-reload if you edit the dynamic.yml
+      - "--entrypoints.web.address=:3000"
     ports:
-      - "27017:27017"
+      - "3000:3000"   
+      - "9000:8080"   
+    volumes:
+      # 🟢 Mount the config folder, NOT the docker.sock
+      - ./traefik_config:/etc/traefik/dynamic:ro 
     networks:
       - smart-mirror-net
+
+  # ==========================================
+  # 2. AI BIOMETRICS SERVICE (PYTHON)
+  # ==========================================
+  face-recognition-service:
+    image: mohamedfouad71/face-recognition-service
+    container_name: face-recognition-service
+    restart: always
+    env_file:
+      - .env
+    depends_on:
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    # 🟢 ALL TRAEFIK LABELS REMOVED
+    networks:
+      - smart-mirror-net
+
+  # ==========================================
+  # 3. CORE NODE.JS SERVICE
+  # ==========================================
   smart-mirror-api:
     image: mohamedfouad71/smart-mirror-api:latest
-    ports:
-      - "3000:3000"
+    container_name: node-service
+    restart: always
     env_file:
-      - .env.api
+      - .env
     depends_on:
       - smart-mirror-mongo
+    # 🟢 ALL TRAEFIK LABELS REMOVED
     networks:
       - smart-mirror-net
-
-  ###################
-  # Frontend Services 
-  ###################
-  smart-mirror-dashboard:
-    image: mohamedfouad71/smart-mirror-dashboard:latest
+  # ==========================================
+  # 4. DATABASES
+  # ==========================================
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: mrayti_qdrant
     ports:
-      - "8081:80"
+      - "6333:6333" # Left open for your local scripts/dashboard
+    volumes:
+      - qdrant_data:/qdrant/storage
     networks:
       - smart-mirror-net
 
-  ###################
-  # AI Services 
-  ###################
-  smart-mirror-ai:
-    image: mohamedfouad71/smart-mirror-ai:latest
-    env_file:
-      - .env.ai
+  redis:
+    image: redis:7.2-alpine
+    container_name: mrayti_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
     networks:
       - smart-mirror-net
-    depends_on:
-      - smart-mirror-api
-  ###################
-  # Network
-  ###################
+
+  smart-mirror-mongo:
+    image: mongo:7.0
+    container_name: mongo
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+    networks:
+      - smart-mirror-net
+
+  # ==========================================
+  # 5. LOGGING SERVICE (DOZZLE) 
+  # ==========================================
+  dozzle:
+    container_name: dozzle
+    image: amir20/dozzle:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+      - "8080:8080"
+    networks:
+      - smart-mirror-net
+
+volumes:
+  qdrant_data:
+    name: mrayti_qdrant_data
+  redis_data:
+    name: mrayti_redis_data
+  mongo-data:
+    name: mrayti_mongo_data
+
 networks:
   smart-mirror-net:
-    driver: bridge

@@ -1,0 +1,33 @@
+http:
+  routers:
+    # 1. AI Service Router
+    ai-api:
+      rule: "PathPrefix(`/ai`)"
+      service: "ai-service-backend"
+      middlewares:
+        - "ai-stripprefix"
+
+    # 2. Node.js API Router
+    node-api:
+      rule: "PathPrefix(`/api`)"
+      service: "node-service-backend"
+
+  middlewares:
+    # Middleware to strip the AI prefix
+    ai-stripprefix:
+      stripPrefix:
+        prefixes:
+          - "/ai"
+
+  services:
+    # Define where the AI traffic goes
+    ai-service-backend:
+      loadBalancer:
+        servers:
+          - url: "http://face-recognition-service:8000"
+
+    # Define where the Node traffic goes
+    node-service-backend:
+      loadBalancer:
+        servers:
+          - url: "http://node-service:3000"
