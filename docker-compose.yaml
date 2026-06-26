@@ -45,6 +45,7 @@ services:
   smart-mirror-api:
     image: mohamedfouad71/smart-mirror-api:latest
     container_name: node-service
+    pull_policy: always
     restart: always
     env_file:
       - .env

@@ -12,6 +12,12 @@ http:
       rule: "PathPrefix(`/api`)"
       service: "node-service-backend"
 
+    # 3. Socket.IO proxy (must come before node-api due to higher priority)
+    node-socketio:
+      rule: "PathPrefix(`/api/socket.io`)"
+      service: "node-service-backend"
+      priority: 20
+
   middlewares:
     # Middleware to strip the AI prefix
     ai-stripprefix:
